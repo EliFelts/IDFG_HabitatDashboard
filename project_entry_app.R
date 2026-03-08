@@ -77,6 +77,14 @@ ui <- fluidPage(
       verbatimTextOutput("coord_text"),
       tags$br(),
       actionButton("clear_point", "Clear point"),
+      radioButtons("map_mode",
+        "Map mode",
+        choices = c(
+          "Set project point" = "point",
+          "Select primary stream" = "stream"
+        ),
+        selected = "point"
+      ),
       actionButton("submit_project", "Create project", class = "btn-primary"),
       tags$hr(),
       verbatimTextOutput("status_text")
@@ -97,6 +105,7 @@ server <- function(input, output, session) {
 
 
   observeEvent(input$project_map_click, {
+    req(input$map_mode == "point")
     req(input$coord_mode == "map")
 
     click <- input$project_map_click
@@ -110,6 +119,7 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$use_manual_coords, {
+    req(input$map_mode == "point")
     req(input$coord_mode == "manual")
     req(!is.na(input$manual_lat), !is.na(input$manual_lng))
 
@@ -168,6 +178,7 @@ server <- function(input, output, session) {
         clearGroup("local_flowlines") |>
         addPolylines(
           data = local_flowlines(),
+          layerId = ~comid,
           group = "local_flowlines",
           label = ~gnis_name
         ) |>
@@ -181,6 +192,37 @@ server <- function(input, output, session) {
           )
         )
     }
+  })
+
+  selected_flowline_id <- reactiveVal(NULL)
+
+  observeEvent(input$project_map_shape_click, {
+    req(input$map_mode == "stream")
+    click <- input$project_map_shape_click
+    req(click$id)
+
+    selected_flowline_id(click$id)
+  })
+
+  selected_flowline <- reactive({
+    req(local_flowlines(), selected_flowline_id())
+
+    local_flowlines() |>
+      filter(comid == selected_flowline_id())
+  })
+
+  observe({
+    req(selected_flowline())
+
+    leafletProxy("project_map") |>
+      clearGroup("selected_flowline") |>
+      addPolylines(
+        data = selected_flowline(),
+        group = "selected_flowline",
+        weight = 5,
+        opacity = 1,
+        color = "red"
+      )
   })
 
   output$coord_text <- renderText({
