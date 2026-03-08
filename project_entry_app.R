@@ -9,6 +9,7 @@ library(shinyvalidate)
 library(glue)
 library(sf)
 library(here)
+library(bslib)
 
 # read in layers that will be nice for reference on the map
 # when entering data
@@ -57,6 +58,29 @@ ui <- fluidPage(
     sidebarPanel(
       textInput("project_name", "Project name"),
       textInput("project_id", "IDFG Project Tracking Number"),
+      textAreaInput("project_description",
+        "Project description",
+        rows = 8,
+        width = "100%"
+      ),
+      selectInput("project_agency",
+        "Managing agency/organization",
+        choices = c("IDFG", "DOGE"),
+        selected = "IDFG"
+      ),
+      selectizeInput("idfg_staff",
+        "IDFG Staff associated with project",
+        choices = c(
+          "Robert Hand",
+          "Brian Knoth"
+        ),
+        multiple = T
+      ),
+      airDatepickerInput("project_startdate",
+        "Project Start Date",
+        value = NULL,
+        clearButton = T
+      ),
       radioButtons(
         "coord_mode",
         "Coordinate entry method",
@@ -219,6 +243,7 @@ server <- function(input, output, session) {
       addPolylines(
         data = selected_flowline(),
         group = "selected_flowline",
+        label = ~ str_c(gnis_name),
         weight = 5,
         opacity = 1,
         color = "red"
