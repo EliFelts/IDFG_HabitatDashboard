@@ -9,6 +9,7 @@ library(shinyvalidate)
 library(glue)
 library(sf)
 library(here)
+library(scales)
 library(bslib)
 
 # read in layers that will be nice for reference on the map
@@ -50,6 +51,15 @@ leaflet_base <- leaflet() %>%
     position = "bottomright"
   )
 
+# make a vector of species that may be benefitted
+
+species_vector <- c(
+  "Brown Trout", "Bull Trout", "Chinook salmon",
+  "Mountain Whitefish", "Rainbow Trout",
+  "Westslope Cutthroat Trout",
+  "Yellowstone Cutthroat Trout"
+)
+
 # make UI
 library(shiny)
 library(bslib)
@@ -59,7 +69,7 @@ library(shinyWidgets)
 ui <- page_sidebar(
   title = "New Habitat Project",
   sidebar = sidebar(
-    width = 380,
+    width = 700,
     open = "open",
     div(
       style = "height: calc(100vh - 80px); overflow-y: auto; padding-right: 10px;",
@@ -71,20 +81,33 @@ ui <- page_sidebar(
         rows = 8,
         width = "100%"
       ),
+      textInput(
+        "project_objective",
+        "Project Objectives"
+      ),
       selectInput(
         "project_agency",
         "Managing agency/organization",
         choices = c("IDFG", "DOGE"),
         selected = "IDFG"
       ),
-      selectizeInput(
+      autonumericInput("amt_awarded",
+        "Amount Awarded",
+        value = NULL,
+        digitGroupSeparator = ","
+      ),
+      pickerInput(
         "idfg_staff",
         "IDFG Staff associated with project",
         choices = c(
           "Robert Hand",
           "Brian Knoth"
         ),
-        multiple = TRUE
+        multiple = TRUE,
+        options = list(
+          `actions-box` = TRUE,
+          `live-search` = TRUE
+        )
       ),
       airDatepickerInput(
         "project_startdate",
@@ -134,6 +157,63 @@ ui <- page_sidebar(
           "Select primary stream" = "stream"
         ),
         selected = "point"
+      ),
+      pickerInput(
+        "primary_species_benefitted",
+        "Primary Species Benefitted",
+        choices = species_vector,
+        multiple = TRUE,
+        options = list(
+          `actions-box` = TRUE,
+          `live-search` = TRUE
+        )
+      ),
+      pickerInput(
+        "secondary_species_benefitted",
+        "Secondary Species Benefitted",
+        choices = species_vector,
+        multiple = TRUE,
+        options = list(
+          `actions-box` = TRUE,
+          `live-search` = TRUE
+        )
+      ),
+      pickerInput(
+        "lifestages_benefitted",
+        "Life stage(s) benefitted",
+        choices = c(
+          "Spawning", "Rearing",
+          "Migration", "Overwintering"
+        ),
+        multiple = T,
+        options = list(
+          `actions-box` = TRUE
+        )
+      ),
+      pickerInput(
+        "habtypes_improved",
+        "Habitat type(s) improved",
+        choices = c(
+          "Mainstem River", "Tributary",
+          "Floodplain", "Wetland",
+          "Riparian", "Spring/groundwater"
+        ),
+        multiple = T,
+        options = list(
+          `actions-box` = TRUE
+        )
+      ),
+      pickerInput(
+        "ownership",
+        "Land Ownership",
+        choices = c(
+          "Private", "State",
+          "Federal", "Tribal"
+        ),
+        multiple = T,
+        options = list(
+          `actions-box` = TRUE
+        )
       ),
       actionButton("submit_project", "Create project", class = "btn-primary"),
       tags$hr(),
