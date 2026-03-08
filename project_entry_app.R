@@ -51,35 +51,46 @@ leaflet_base <- leaflet() %>%
   )
 
 # make UI
+library(shiny)
+library(bslib)
+library(leaflet)
+library(shinyWidgets)
 
-ui <- fluidPage(
-  titlePanel("New Habitat Project"),
-  sidebarLayout(
-    sidebarPanel(
+ui <- page_sidebar(
+  title = "New Habitat Project",
+  sidebar = sidebar(
+    width = 380,
+    open = "open",
+    div(
+      style = "height: calc(100vh - 80px); overflow-y: auto; padding-right: 10px;",
       textInput("project_name", "Project name"),
       textInput("project_id", "IDFG Project Tracking Number"),
-      textAreaInput("project_description",
+      textAreaInput(
+        "project_description",
         "Project description",
         rows = 8,
         width = "100%"
       ),
-      selectInput("project_agency",
+      selectInput(
+        "project_agency",
         "Managing agency/organization",
         choices = c("IDFG", "DOGE"),
         selected = "IDFG"
       ),
-      selectizeInput("idfg_staff",
+      selectizeInput(
+        "idfg_staff",
         "IDFG Staff associated with project",
         choices = c(
           "Robert Hand",
           "Brian Knoth"
         ),
-        multiple = T
+        multiple = TRUE
       ),
-      airDatepickerInput("project_startdate",
+      airDatepickerInput(
+        "project_startdate",
         "Project Start Date",
         value = NULL,
-        clearButton = T
+        clearButton = TRUE
       ),
       radioButtons(
         "coord_mode",
@@ -92,8 +103,22 @@ ui <- fluidPage(
       ),
       conditionalPanel(
         condition = "input.coord_mode == 'manual'",
-        numericInput("manual_lat", "Latitude", value = NA, min = -90, max = 90, step = 0.000001),
-        numericInput("manual_lng", "Longitude", value = NA, min = -180, max = 180, step = 0.000001),
+        numericInput(
+          "manual_lat",
+          "Latitude",
+          value = NA,
+          min = -90,
+          max = 90,
+          step = 0.000001
+        ),
+        numericInput(
+          "manual_lng",
+          "Longitude",
+          value = NA,
+          min = -180,
+          max = 180,
+          step = 0.000001
+        ),
         actionButton("use_manual_coords", "Use manual coordinates")
       ),
       tags$hr(),
@@ -101,7 +126,8 @@ ui <- fluidPage(
       verbatimTextOutput("coord_text"),
       tags$br(),
       actionButton("clear_point", "Clear point"),
-      radioButtons("map_mode",
+      radioButtons(
+        "map_mode",
         "Map mode",
         choices = c(
           "Set project point" = "point",
@@ -112,9 +138,14 @@ ui <- fluidPage(
       actionButton("submit_project", "Create project", class = "btn-primary"),
       tags$hr(),
       verbatimTextOutput("status_text")
-    ),
-    mainPanel(
-      leafletOutput("project_map", height = 650)
+    )
+  ),
+  card(
+    full_screen = TRUE,
+    height = "calc(100vh - 80px)",
+    card_body(
+      padding = 0,
+      leafletOutput("project_map", height = "100%")
     )
   )
 )
