@@ -66,7 +66,6 @@ library(shiny)
 library(bslib)
 library(leaflet)
 library(shinyWidgets)
-
 ui <- page_sidebar(
   title = "New Habitat Project",
   sidebar = sidebar(
@@ -74,28 +73,41 @@ ui <- page_sidebar(
     open = "open",
     div(
       style = "height: calc(100vh - 80px); overflow-y: auto; padding-right: 10px;",
-      textInput("project_name", "Project name"),
-      textInput("project_id", "IDFG Project Tracking Number"),
+      h4("Project Information"),
+      layout_columns(
+        col_widths = c(6, 6),
+        textInput("project_name", "Project name"),
+        textInput("project_id", "IDFG Project Tracking Number"),
+        textInput(
+          "project_objective",
+          "Project Objectives"
+        ),
+        selectInput(
+          "project_agency",
+          "Managing agency/organization",
+          choices = c("IDFG", "DOGE"),
+          selected = "IDFG"
+        ),
+        autonumericInput(
+          "amt_awarded",
+          "Amount Awarded",
+          value = NULL,
+          digitGroupSeparator = ",",
+          currencySymbol = "$",
+          currencySymbolPlacement = "p"
+        ),
+        airDatepickerInput(
+          "project_startdate",
+          "Project Start Date",
+          value = NULL,
+          clearButton = TRUE
+        )
+      ),
       textAreaInput(
         "project_description",
         "Project description",
         rows = 8,
         width = "100%"
-      ),
-      textInput(
-        "project_objective",
-        "Project Objectives"
-      ),
-      selectInput(
-        "project_agency",
-        "Managing agency/organization",
-        choices = c("IDFG", "DOGE"),
-        selected = "IDFG"
-      ),
-      autonumericInput("amt_awarded",
-        "Amount Awarded",
-        value = NULL,
-        digitGroupSeparator = ","
       ),
       pickerInput(
         "idfg_staff",
@@ -108,102 +120,115 @@ ui <- page_sidebar(
         options = list(
           `actions-box` = TRUE,
           `live-search` = TRUE
-        )
-      ),
-      airDatepickerInput(
-        "project_startdate",
-        "Project Start Date",
-        value = NULL,
-        clearButton = TRUE
-      ),
-      radioButtons(
-        "coord_mode",
-        "Coordinate entry method",
-        choices = c(
-          "Click on map" = "map",
-          "Manual entry" = "manual"
         ),
-        selected = "map"
+        width = "100%"
+      ),
+      tags$hr(),
+      h4("Location"),
+      layout_columns(
+        col_widths = c(6, 6),
+        radioButtons(
+          "coord_mode",
+          "Coordinate entry method",
+          choices = c(
+            "Click on map" = "map",
+            "Manual entry" = "manual"
+          ),
+          selected = "map"
+        ),
+        radioButtons(
+          "map_mode",
+          "Map mode",
+          choices = c(
+            "Set project point" = "point",
+            "Select primary stream" = "stream"
+          ),
+          selected = "point"
+        )
       ),
       conditionalPanel(
         condition = "input.coord_mode == 'manual'",
-        numericInput(
-          "manual_lat",
-          "Latitude",
-          value = NA,
-          min = -90,
-          max = 90,
-          step = 0.000001
-        ),
-        numericInput(
-          "manual_lng",
-          "Longitude",
-          value = NA,
-          min = -180,
-          max = 180,
-          step = 0.000001
+        layout_columns(
+          col_widths = c(6, 6),
+          numericInput(
+            "manual_lat",
+            "Latitude",
+            value = NA,
+            min = -90,
+            max = 90,
+            step = 0.000001
+          ),
+          numericInput(
+            "manual_lng",
+            "Longitude",
+            value = NA,
+            min = -180,
+            max = 180,
+            step = 0.000001
+          )
         ),
         actionButton("use_manual_coords", "Use manual coordinates")
       ),
-      tags$hr(),
       strong("Selected coordinates"),
       verbatimTextOutput("coord_text"),
       tags$br(),
       actionButton("clear_point", "Clear point"),
-      radioButtons(
-        "map_mode",
-        "Map mode",
-        choices = c(
-          "Set project point" = "point",
-          "Select primary stream" = "stream"
+      tags$hr(),
+      h4("Biological Benefits"),
+      layout_columns(
+        col_widths = c(6, 6),
+        pickerInput(
+          "primary_species_benefitted",
+          "Primary Species Benefitted",
+          choices = species_vector,
+          multiple = TRUE,
+          options = list(
+            `actions-box` = TRUE,
+            `live-search` = TRUE
+          ),
+          width = "100%"
         ),
-        selected = "point"
-      ),
-      pickerInput(
-        "primary_species_benefitted",
-        "Primary Species Benefitted",
-        choices = species_vector,
-        multiple = TRUE,
-        options = list(
-          `actions-box` = TRUE,
-          `live-search` = TRUE
-        )
-      ),
-      pickerInput(
-        "secondary_species_benefitted",
-        "Secondary Species Benefitted",
-        choices = species_vector,
-        multiple = TRUE,
-        options = list(
-          `actions-box` = TRUE,
-          `live-search` = TRUE
-        )
-      ),
-      pickerInput(
-        "lifestages_benefitted",
-        "Life stage(s) benefitted",
-        choices = c(
-          "Spawning", "Rearing",
-          "Migration", "Overwintering"
+        pickerInput(
+          "secondary_species_benefitted",
+          "Secondary Species Benefitted",
+          choices = species_vector,
+          multiple = TRUE,
+          options = list(
+            `actions-box` = TRUE,
+            `live-search` = TRUE
+          ),
+          width = "100%"
         ),
-        multiple = T,
-        options = list(
-          `actions-box` = TRUE
-        )
-      ),
-      pickerInput(
-        "habtypes_improved",
-        "Habitat type(s) improved",
-        choices = c(
-          "Mainstem River", "Tributary",
-          "Floodplain", "Wetland",
-          "Riparian", "Spring/groundwater"
+        pickerInput(
+          "lifestages_benefitted",
+          "Life stage(s) benefitted",
+          choices = c(
+            "Spawning", "Rearing",
+            "Migration", "Overwintering"
+          ),
+          multiple = TRUE,
+          options = list(
+            `actions-box` = TRUE
+          ),
+          width = "100%"
         ),
-        multiple = T,
-        options = list(
-          `actions-box` = TRUE
+        pickerInput(
+          "habtypes_improved",
+          "Habitat type(s) improved",
+          choices = c(
+            "Mainstem River", "Tributary",
+            "Floodplain", "Wetland",
+            "Riparian", "Spring/groundwater"
+          ),
+          multiple = TRUE,
+          options = list(
+            `actions-box` = TRUE
+          ),
+          width = "100%"
         )
       ),
+      tags$hr(),
+      h4("Land Ownership"),
       pickerInput(
         "ownership",
         "Land Ownership",
@@ -211,11 +236,13 @@ ui <- page_sidebar(
           "Private", "State",
           "Federal", "Tribal"
         ),
-        multiple = T,
+        multiple = TRUE,
         options = list(
           `actions-box` = TRUE
-        )
+        ),
+        width = "100%"
       ),
+      tags$hr(),
       actionButton("submit_project", "Create project", class = "btn-primary"),
       tags$hr(),
       verbatimTextOutput("status_text")
