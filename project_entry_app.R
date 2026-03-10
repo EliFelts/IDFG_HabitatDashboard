@@ -11,6 +11,7 @@ library(sf)
 library(here)
 library(scales)
 library(bslib)
+library(arrow)
 
 # read in layers that will be nice for reference on the map
 # when entering data
@@ -69,7 +70,7 @@ library(shinyWidgets)
 ui <- page_sidebar(
   title = "New Habitat Project",
   sidebar = sidebar(
-    width = 700,
+    width = 900,
     open = "open",
     div(
       style = "height: calc(100vh - 80px); overflow-y: auto; padding-right: 10px;",
