@@ -36,6 +36,10 @@ projects.sf <- st_read(habitat.gpkg, layer = "projects")
 
 idaho_huc8.sf <- readRDS("data-raw/huc8")
 
+idaho_huc6.sf <- readRDS("data-raw/huc6")
+
+idaho_counties.sf <- readRDS("data-raw/idaho_counties")
+
 # make base leaflet map
 
 leaflet_base <- leaflet() %>%
@@ -53,7 +57,7 @@ leaflet_base <- leaflet() %>%
   )
 
 leaflet_base |>
-  addPolygons(data = idaho_huc8.sf)
+  addPolygons(data = idaho_counties.sf)
 
 # make a vector of species that may be benefitted
 
@@ -279,10 +283,14 @@ server <- function(input, output, session) {
     leaflet_base
   })
 
+  stream_mode_active <- reactive({
+    isTRUE(input$stream_mode) && !is.null(selected_point())
+  })
+
 
   observeEvent(input$project_map_click, {
     req(input$coord_mode == "map")
-    req(is.null(input$stream_mode) || !isTRUE(input$stream_mode))
+    req(!stream_mode_active())
 
     click <- input$project_map_click
 
@@ -296,7 +304,7 @@ server <- function(input, output, session) {
 
   observeEvent(input$use_manual_coords, {
     req(input$coord_mode == "manual")
-    req(is.null(input$stream_mode) || !isTRUE(input$stream_mode))
+    req(!stream_mode_active())
     req(!is.na(input$manual_lat), !is.na(input$manual_lng))
 
     validate(
@@ -313,7 +321,18 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$clear_point, {
+    selected_flowline_id(NULL)
+
+    if (!is.null(input$stream_mode)) {
+      shinyWidgets::updateSwitchInput(session, "stream_mode", value = FALSE)
+    }
+
     selected_point(NULL)
+
+    leafletProxy("project_map") |>
+      clearMarkers() |>
+      clearGroup("local_flowlines") |>
+      clearGroup("selected_flowline")
   })
 
   selected_huc8 <- reactive({
@@ -393,7 +412,7 @@ server <- function(input, output, session) {
   selected_flowline_id <- reactiveVal(NULL)
 
   observeEvent(input$project_map_shape_click, {
-    req(isTRUE(input$stream_mode))
+    req(stream_mode_active())
     click <- input$project_map_shape_click
     req(click$id)
 
@@ -425,6 +444,7 @@ server <- function(input, output, session) {
   output$coord_text <- renderText({
     pt <- selected_point()
 
+
     if (is.null(pt)) {
       return("No point selected yet.")
     }
@@ -448,10 +468,12 @@ server <- function(input, output, session) {
 
   observeEvent(input$submit_project, {
     pt <- selected_point()
+    sel_stream <- selected_flowline()
 
     validate(
       need(nzchar(trimws(input$project_name)), "Enter a project name."),
-      need(!is.null(pt), "Select project coordinates.")
+      need(!is.null(pt), "Select project coordinates."),
+      need(!is.null(sel_stream) && nrow(sel_stream) > 0, "Select a primary stream.")
     )
 
     new_project <- tibble(
