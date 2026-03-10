@@ -52,6 +52,9 @@ leaflet_base <- leaflet() %>%
     position = "bottomright"
   )
 
+leaflet_base |>
+  addPolygons(data = idaho_huc8.sf)
+
 # make a vector of species that may be benefitted
 
 species_vector <- c(
@@ -61,11 +64,6 @@ species_vector <- c(
   "Yellowstone Cutthroat Trout"
 )
 
-# make UI
-library(shiny)
-library(bslib)
-library(leaflet)
-library(shinyWidgets)
 ui <- page_sidebar(
   title = "New Habitat Project",
   sidebar = sidebar(
@@ -73,174 +71,184 @@ ui <- page_sidebar(
     open = "open",
     div(
       style = "height: calc(100vh - 80px); overflow-y: auto; padding-right: 10px;",
-      h4("Project Information"),
-      layout_columns(
-        col_widths = c(6, 6),
-        textInput("project_name", "Project name"),
-        textInput("project_id", "IDFG Project Tracking Number"),
-        textInput(
-          "project_objective",
-          "Project Objectives"
-        ),
-        selectInput(
-          "project_agency",
-          "Managing agency/organization",
-          choices = c("IDFG", "DOGE"),
-          selected = "IDFG"
-        ),
-        autonumericInput(
-          "amt_awarded",
-          "Amount Awarded",
-          value = NULL,
-          digitGroupSeparator = ",",
-          currencySymbol = "$",
-          currencySymbolPlacement = "p"
-        ),
-        airDatepickerInput(
-          "project_startdate",
-          "Project Start Date",
-          value = NULL,
-          clearButton = TRUE
-        )
-      ),
-      textAreaInput(
-        "project_description",
-        "Project description",
-        rows = 8,
-        width = "100%"
-      ),
-      pickerInput(
-        "idfg_staff",
-        "IDFG Staff associated with project",
-        choices = c(
-          "Robert Hand",
-          "Brian Knoth"
-        ),
+      accordion(
         multiple = TRUE,
-        options = list(
-          `actions-box` = TRUE,
-          `live-search` = TRUE
-        ),
-        width = "100%"
-      ),
-      tags$hr(),
-      h4("Location"),
-      layout_columns(
-        col_widths = c(6, 6),
-        radioButtons(
-          "coord_mode",
-          "Coordinate entry method",
-          choices = c(
-            "Click on map" = "map",
-            "Manual entry" = "manual"
+        open = c("Project Information", "Location & Stream Selection"),
+        accordion_panel(
+          "Project Information",
+          layout_columns(
+            col_widths = c(6, 6),
+            textInput("project_name", "Project name"),
+            textInput("project_id", "IDFG Project Tracking Number"),
+            textInput(
+              "project_objective",
+              "Project Objectives"
+            ),
+            selectInput(
+              "project_agency",
+              "Managing agency/organization",
+              choices = c("IDFG", "DOGE"),
+              selected = "IDFG"
+            ),
+            autonumericInput(
+              "amt_awarded",
+              "Amount Awarded",
+              value = NULL,
+              digitGroupSeparator = ",",
+              currencySymbol = "$",
+              currencySymbolPlacement = "p"
+            ),
+            airDatepickerInput(
+              "project_startdate",
+              "Project Start Date",
+              value = NULL,
+              clearButton = TRUE
+            )
           ),
-          selected = "map"
-        ),
-        radioButtons(
-          "map_mode",
-          "Map mode",
-          choices = c(
-            "Set project point" = "point",
-            "Select primary stream" = "stream"
+          textAreaInput(
+            "project_description",
+            "Project description",
+            rows = 8,
+            width = "100%"
           ),
-          selected = "point"
-        )
-      ),
-      conditionalPanel(
-        condition = "input.coord_mode == 'manual'",
-        layout_columns(
-          col_widths = c(6, 6),
-          numericInput(
-            "manual_lat",
-            "Latitude",
-            value = NA,
-            min = -90,
-            max = 90,
-            step = 0.000001
-          ),
-          numericInput(
-            "manual_lng",
-            "Longitude",
-            value = NA,
-            min = -180,
-            max = 180,
-            step = 0.000001
+          pickerInput(
+            "idfg_staff",
+            "IDFG Staff associated with project",
+            choices = c(
+              "Robert Hand",
+              "Brian Knoth"
+            ),
+            multiple = TRUE,
+            options = list(
+              `actions-box` = TRUE,
+              `live-search` = TRUE
+            ),
+            width = "100%"
           )
         ),
-        actionButton("use_manual_coords", "Use manual coordinates")
-      ),
-      strong("Selected coordinates"),
-      verbatimTextOutput("coord_text"),
-      tags$br(),
-      actionButton("clear_point", "Clear point"),
-      tags$hr(),
-      h4("Biological Benefits"),
-      layout_columns(
-        col_widths = c(6, 6),
-        pickerInput(
-          "primary_species_benefitted",
-          "Primary Species Benefitted",
-          choices = species_vector,
-          multiple = TRUE,
-          options = list(
-            `actions-box` = TRUE,
-            `live-search` = TRUE
+        accordion_panel(
+          "Location & Stream Selection",
+          p(
+            class = "text-muted",
+            "Choose project coordinates by clicking the map or entering them manually."
           ),
-          width = "100%"
+          layout_columns(
+            col_widths = c(6, 6),
+            radioButtons(
+              "coord_mode",
+              "Coordinate entry method",
+              choices = c(
+                "Click on map" = "map",
+                "Manual entry" = "manual"
+              ),
+              selected = "map"
+            ),
+            div(
+              strong("Selected coordinates"),
+              verbatimTextOutput("coord_text")
+            )
+          ),
+          conditionalPanel(
+            condition = "input.coord_mode == 'manual'",
+            layout_columns(
+              col_widths = c(6, 6),
+              numericInput(
+                "manual_lat",
+                "Latitude",
+                value = NA,
+                min = -90,
+                max = 90,
+                step = 0.000001
+              ),
+              numericInput(
+                "manual_lng",
+                "Longitude",
+                value = NA,
+                min = -180,
+                max = 180,
+                step = 0.000001
+              )
+            ),
+            actionButton("use_manual_coords", "Use manual coordinates")
+          ),
+          layout_columns(
+            col_widths = c(6, 6),
+            actionButton("clear_point", "Clear point"),
+            div()
+          ),
+          uiOutput("stream_selection_ui")
         ),
-        pickerInput(
-          "secondary_species_benefitted",
-          "Secondary Species Benefitted",
-          choices = species_vector,
-          multiple = TRUE,
-          options = list(
-            `actions-box` = TRUE,
-            `live-search` = TRUE
-          ),
-          width = "100%"
+        accordion_panel(
+          "Biological Benefits",
+          layout_columns(
+            col_widths = c(6, 6),
+            pickerInput(
+              "primary_species_benefitted",
+              "Primary Species Benefitted",
+              choices = species_vector,
+              multiple = TRUE,
+              options = list(
+                `actions-box` = TRUE,
+                `live-search` = TRUE
+              ),
+              width = "100%"
+            ),
+            pickerInput(
+              "secondary_species_benefitted",
+              "Secondary Species Benefitted",
+              choices = species_vector,
+              multiple = TRUE,
+              options = list(
+                `actions-box` = TRUE,
+                `live-search` = TRUE
+              ),
+              width = "100%"
+            ),
+            pickerInput(
+              "lifestages_benefitted",
+              "Life stage(s) benefitted",
+              choices = c(
+                "Spawning", "Rearing",
+                "Migration", "Overwintering"
+              ),
+              multiple = TRUE,
+              options = list(
+                `actions-box` = TRUE
+              ),
+              width = "100%"
+            ),
+            pickerInput(
+              "habtypes_improved",
+              "Habitat type(s) improved",
+              choices = c(
+                "Mainstem River", "Tributary",
+                "Floodplain", "Wetland",
+                "Riparian", "Spring/groundwater"
+              ),
+              multiple = TRUE,
+              options = list(
+                `actions-box` = TRUE
+              ),
+              width = "100%"
+            )
+          )
         ),
-        pickerInput(
-          "lifestages_benefitted",
-          "Life stage(s) benefitted",
-          choices = c(
-            "Spawning", "Rearing",
-            "Migration", "Overwintering"
-          ),
-          multiple = TRUE,
-          options = list(
-            `actions-box` = TRUE
-          ),
-          width = "100%"
-        ),
-        pickerInput(
-          "habtypes_improved",
-          "Habitat type(s) improved",
-          choices = c(
-            "Mainstem River", "Tributary",
-            "Floodplain", "Wetland",
-            "Riparian", "Spring/groundwater"
-          ),
-          multiple = TRUE,
-          options = list(
-            `actions-box` = TRUE
-          ),
-          width = "100%"
+        accordion_panel(
+          "Land Ownership",
+          pickerInput(
+            "ownership",
+            "Land Ownership",
+            choices = c(
+              "Private", "State",
+              "Federal", "Tribal"
+            ),
+            multiple = TRUE,
+            options = list(
+              `actions-box` = TRUE
+            ),
+            width = "100%"
+          )
         )
-      ),
-      tags$hr(),
-      h4("Land Ownership"),
-      pickerInput(
-        "ownership",
-        "Land Ownership",
-        choices = c(
-          "Private", "State",
-          "Federal", "Tribal"
-        ),
-        multiple = TRUE,
-        options = list(
-          `actions-box` = TRUE
-        ),
-        width = "100%"
       ),
       tags$hr(),
       actionButton("submit_project", "Create project", class = "btn-primary"),
@@ -251,12 +259,17 @@ ui <- page_sidebar(
   card(
     full_screen = TRUE,
     height = "calc(100vh - 80px)",
+    card_header("Project Map"),
     card_body(
       padding = 0,
       leafletOutput("project_map", height = "100%")
     )
   )
 )
+
+
+
+
 
 server <- function(input, output, session) {
   selected_point <- reactiveVal(NULL)
@@ -268,8 +281,8 @@ server <- function(input, output, session) {
 
 
   observeEvent(input$project_map_click, {
-    req(input$map_mode == "point")
     req(input$coord_mode == "map")
+    req(is.null(input$stream_mode) || !isTRUE(input$stream_mode))
 
     click <- input$project_map_click
 
@@ -282,8 +295,8 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$use_manual_coords, {
-    req(input$map_mode == "point")
     req(input$coord_mode == "manual")
+    req(is.null(input$stream_mode) || !isTRUE(input$stream_mode))
     req(!is.na(input$manual_lat), !is.na(input$manual_lng))
 
     validate(
@@ -318,6 +331,26 @@ server <- function(input, output, session) {
     req(nrow(pt.join) > 0)
 
     pt.join$huc8[1]
+  })
+
+  output$stream_selection_ui <- renderUI({
+    req(selected_point())
+
+    tagList(
+      h4("Select Primary Stream"),
+      p(
+        class = "text-muted",
+        "Enable stream selection mode, then click the correct NHD flowline on the map."
+      ),
+      switchInput(
+        "stream_mode",
+        "Stream selection mode",
+        value = FALSE,
+        onLabel = "ON",
+        offLabel = "OFF"
+      ),
+      textOutput("selected_stream_text")
+    )
   })
 
   local_flowlines <- reactive({
@@ -360,7 +393,7 @@ server <- function(input, output, session) {
   selected_flowline_id <- reactiveVal(NULL)
 
   observeEvent(input$project_map_shape_click, {
-    req(input$map_mode == "stream")
+    req(isTRUE(input$stream_mode))
     click <- input$project_map_shape_click
     req(click$id)
 
@@ -399,6 +432,18 @@ server <- function(input, output, session) {
     glue(
       "Latitude: {round(pt$latitude, 6)}\nLongitude: {round(pt$longitude, 6)}"
     )
+  })
+
+  output$selected_stream_text <- renderText({
+    req(selected_flowline())
+
+    stream_name <- selected_flowline()$gnis_name[1]
+
+    if (is.na(stream_name) || stream_name == "") {
+      "Selected stream: Unnamed flowline"
+    } else {
+      paste("Selected stream:", stream_name)
+    }
   })
 
   observeEvent(input$submit_project, {
