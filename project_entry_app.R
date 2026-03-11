@@ -70,6 +70,7 @@ leaflet_base |>
 # make a vector of species that may be benefitted
 
 species_vector <- c(
+  "",
   "Brown Trout", "Bull Trout", "Chinook salmon",
   "Mountain Whitefish", "Rainbow Trout",
   "Westslope Cutthroat Trout",
@@ -131,19 +132,85 @@ ui <- page_sidebar(
             rows = 8,
             width = "100%"
           ),
-          pickerInput(
-            "idfg_staff",
-            "IDFG Staff associated with project",
-            choices = c(
-              "Robert Hand",
-              "Brian Knoth"
+          layout_columns(
+            col_widths = c(6, 6),
+            pickerInput(
+              "idfg_staff",
+              "IDFG Staff associated with project",
+              choices = c(
+                "Robert Hand",
+                "Brian Knoth"
+              ),
+              multiple = TRUE,
+              options = list(
+                `actions-box` = TRUE,
+                `live-search` = TRUE
+              ),
+              width = "100%"
             ),
-            multiple = TRUE,
-            options = list(
-              `actions-box` = TRUE,
-              `live-search` = TRUE
+            pickerInput(
+              "primary_species_benefitted",
+              "Primary Species Benefitted",
+              choices = c("Select primary species" = "", species_vector),
+              selected = "",
+              multiple = FALSE,
+              options = list(
+                `live-search` = TRUE
+              ),
+              width = "100%"
             ),
-            width = "100%"
+            pickerInput(
+              "secondary_species_benefitted",
+              "Secondary Species Benefitted",
+              choices = species_vector,
+              multiple = TRUE,
+              options = list(
+                `actions-box` = TRUE,
+                `live-search` = TRUE
+              ),
+              width = "100%"
+            ),
+            pickerInput(
+              "lifestages_benefitted",
+              "Life stage(s) benefitted",
+              choices = c(
+                "Spawning", "Rearing",
+                "Migration", "Overwintering"
+              ),
+              multiple = TRUE,
+              options = list(
+                `actions-box` = TRUE
+              ),
+              width = "100%"
+            ),
+            pickerInput(
+              "habtypes_improved",
+              "Habitat type(s) improved",
+              choices = c(
+                "Mainstem River", "Tributary",
+                "Floodplain", "Wetland",
+                "Riparian", "Spring/groundwater"
+              ),
+              multiple = TRUE,
+              options = list(
+                `actions-box` = TRUE
+              ),
+              width = "100%"
+            ),
+            pickerInput(
+              "ownership",
+              "Land Ownership",
+              choices = c(
+                "Private", "State",
+                "Federal", "Tribal"
+              ),
+              multiple = TRUE,
+              options = list(
+                `actions-box` = TRUE
+              ),
+              width = "100%"
+            ),
+            div()
           )
         ),
         accordion_panel(
@@ -197,84 +264,13 @@ ui <- page_sidebar(
             div()
           ),
           uiOutput("stream_selection_ui")
-        ),
-        accordion_panel(
-          "Biological Benefits",
-          layout_columns(
-            col_widths = c(6, 6),
-            pickerInput(
-              "primary_species_benefitted",
-              "Primary Species Benefitted",
-              choices = species_vector,
-              multiple = TRUE,
-              options = list(
-                `actions-box` = TRUE,
-                `live-search` = TRUE
-              ),
-              width = "100%"
-            ),
-            pickerInput(
-              "secondary_species_benefitted",
-              "Secondary Species Benefitted",
-              choices = species_vector,
-              multiple = TRUE,
-              options = list(
-                `actions-box` = TRUE,
-                `live-search` = TRUE
-              ),
-              width = "100%"
-            ),
-            pickerInput(
-              "lifestages_benefitted",
-              "Life stage(s) benefitted",
-              choices = c(
-                "Spawning", "Rearing",
-                "Migration", "Overwintering"
-              ),
-              multiple = TRUE,
-              options = list(
-                `actions-box` = TRUE
-              ),
-              width = "100%"
-            ),
-            pickerInput(
-              "habtypes_improved",
-              "Habitat type(s) improved",
-              choices = c(
-                "Mainstem River", "Tributary",
-                "Floodplain", "Wetland",
-                "Riparian", "Spring/groundwater"
-              ),
-              multiple = TRUE,
-              options = list(
-                `actions-box` = TRUE
-              ),
-              width = "100%"
-            )
-          )
-        ),
-        accordion_panel(
-          "Land Ownership",
-          pickerInput(
-            "ownership",
-            "Land Ownership",
-            choices = c(
-              "Private", "State",
-              "Federal", "Tribal"
-            ),
-            multiple = TRUE,
-            options = list(
-              `actions-box` = TRUE
-            ),
-            width = "100%"
-          )
         )
       ),
       tags$hr(),
-      actionButton("submit_project", "Preview project", class = "btn-primary"),
+      uiOutput("preview_button_ui"),
       tags$hr(),
       verbatimTextOutput("status_text"),
-      actionButton("save_project", "Save project", class = "btn-primary")
+      uiOutput("save_button_ui")
     )
   ),
   card(
@@ -287,7 +283,6 @@ ui <- page_sidebar(
     )
   )
 )
-
 
 
 
@@ -519,6 +514,22 @@ server <- function(input, output, session) {
       st_join(regions.sf)
   })
 
+  # validate whether spatial data are ready for
+  # creating preview
+
+  preview_ready <- reactive({
+    !is.null(selected_point()) && !is.null(selected_flowline_id())
+  })
+
+  # render preview button once enough info has been selected
+
+  output$preview_button_ui <- renderUI({
+    req(preview_ready())
+
+    actionButton("submit_project", "Preview Project")
+  })
+
+
   iv <- InputValidator$new()
 
   iv$add_rule("project_name", sv_required("Project name is required"))
@@ -529,6 +540,10 @@ server <- function(input, output, session) {
   iv$add_rule("project_startdate", sv_required("Project Start Date is required"))
   iv$add_rule("project_description", sv_required("Project Description is required"))
   iv$add_rule("idfg_staff", sv_required("Staff is required"))
+  iv$add_rule("primary_species_benefitted", sv_required("Primary species is required"))
+
+
+  project_preview <- reactiveVal(NULL)
 
   observeEvent(input$submit_project, {
     iv$enable()
@@ -544,6 +559,8 @@ server <- function(input, output, session) {
 
 
     new_project <- project_joined()
+
+    project_preview(new_project)
 
     # Replace this with your real DB write
     # print(new_project)
@@ -562,7 +579,11 @@ server <- function(input, output, session) {
   })
 
 
+  output$save_button_ui <- renderUI({
+    req(project_preview())
 
+    actionButton("save_project", "Save Project")
+  })
 
   observeEvent(input$save_project, {
     req(project_joined())
