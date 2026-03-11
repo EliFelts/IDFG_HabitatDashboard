@@ -30,7 +30,7 @@ states.sf <- st_read(habitat.gpkg, layer = "states")
 idaho.sf <- states.sf %>%
   filter(name == "Idaho")
 
-regions.sf <- st_read(habitat.gpkg, layer = "idfg_regions")
+
 
 projects.sf <- st_read(habitat.gpkg, layer = "projects")
 
@@ -38,7 +38,12 @@ idaho_huc8.sf <- readRDS("data-raw/huc8")
 
 idaho_huc6.sf <- readRDS("data-raw/huc6")
 
-idaho_counties.sf <- readRDS("data-raw/idaho_counties")
+idaho_counties.sf <- readRDS("data-raw/idaho_counties") |>
+  st_transform(crs = st_crs(idaho_huc8.sf)) |>
+  select(county = NAME)
+
+regions.sf <- st_read(habitat.gpkg, layer = "idfg_regions") |>
+  st_transform(crs = st_crs(idaho_huc8.sf))
 
 # make base leaflet map
 
@@ -466,6 +471,29 @@ server <- function(input, output, session) {
     }
   })
 
+  # reactive to do some spatial joins then
+  # bring everything together into a table for output
+
+  project_joined <- eventReactive(input$submit_project, {
+    req(selected_point())
+    req(selected_flowline())
+
+    # do the spatial joins
+
+    project.join <- selected_point() |>
+      st_as_sf(
+        coords = c("longitude", "latitude"),
+        crs = st_crs(idaho_huc8.sf),
+        remove = F
+      ) |>
+      mutate(
+        project_name = trimws(input$project_name)
+      ) |>
+      st_join(idaho_huc8.sf) |>
+      st_join(idaho_counties.sf) |>
+      st_join(regions.sf)
+  })
+
   observeEvent(input$submit_project, {
     pt <- selected_point()
     sel_stream <- selected_flowline()
@@ -476,24 +504,28 @@ server <- function(input, output, session) {
       need(!is.null(sel_stream) && nrow(sel_stream) > 0, "Select a primary stream.")
     )
 
-    new_project <- tibble(
-      project_name = trimws(input$project_name),
-      project_id = trimws(input$project_id),
-      latitude = pt$latitude,
-      longitude = pt$longitude,
-      created_at = Sys.time()
-    )
+    # new_project <- tibble(
+    #   project_name = trimws(input$project_name),
+    #   project_id = trimws(input$project_id),
+    #   latitude = pt$latitude,
+    #   longitude = pt$longitude,
+    #   created_at = Sys.time()
+    # )
+
+    new_project <- project_joined()
 
     # Replace this with your real DB write
-    print(new_project)
+    # print(new_project)
 
     output$status_text <- renderText({
       glue(
         "Project ready to write:\n
          Name: {new_project$project_name}\n
-         Project ID: {new_project$project_id}\n
          Latitude: {round(new_project$latitude, 6)}\n
-         Longitude: {round(new_project$longitude, 6)}"
+         Longitude: {round(new_project$longitude, 6)}\n
+         County: {new_project$county}\n
+         Region: {new_project$region_name}\n
+         HUC8: {new_project$huc8}"
       )
     })
   })
