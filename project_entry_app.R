@@ -13,6 +13,8 @@ library(scales)
 library(bslib)
 library(arrow)
 
+test <- read_rds("data-raw/test")
+
 # read in layers that will be nice for reference on the map
 # when entering data
 
@@ -34,7 +36,8 @@ idaho.sf <- states.sf %>%
 
 projects.sf <- st_read(habitat.gpkg, layer = "projects")
 
-idaho_huc8.sf <- readRDS("data-raw/huc8")
+idaho_huc8.sf <- readRDS("data-raw/huc8") |>
+  select(huc6, huc8)
 
 idaho_huc6.sf <- readRDS("data-raw/huc6")
 
@@ -72,6 +75,14 @@ species_vector <- c(
   "Westslope Cutthroat Trout",
   "Yellowstone Cutthroat Trout"
 )
+
+collapse_or_na <- function(x) {
+  if (is.null(x) || length(x) == 0) {
+    NA_character_
+  } else {
+    paste(x, collapse = "; ")
+  }
+}
 
 ui <- page_sidebar(
   title = "New Habitat Project",
@@ -260,9 +271,10 @@ ui <- page_sidebar(
         )
       ),
       tags$hr(),
-      actionButton("submit_project", "Create project", class = "btn-primary"),
+      actionButton("submit_project", "Preview project", class = "btn-primary"),
       tags$hr(),
-      verbatimTextOutput("status_text")
+      verbatimTextOutput("status_text"),
+      actionButton("save_project", "Save project", class = "btn-primary")
     )
   ),
   card(
@@ -282,7 +294,6 @@ ui <- page_sidebar(
 
 server <- function(input, output, session) {
   selected_point <- reactiveVal(NULL)
-
 
   output$project_map <- renderLeaflet({
     leaflet_base
@@ -487,16 +498,43 @@ server <- function(input, output, session) {
         remove = F
       ) |>
       mutate(
-        project_name = trimws(input$project_name)
+        project_name = trimws(input$project_name),
+        idfg_trackingnumber = trimws(input$project_id),
+        objectives = input$project_objectives,
+        managing_org = input$project_agency,
+        award_amount = input$amt_awarded,
+        project_startdate = input$project_startdate,
+        project_description = input$project_description,
+        idfg_staff = input$idfg_staff,
+        stream_name = selected_flowline()$gnis_name,
+        gnis_id = selected_flowline()$gnis_id,
+        primary_species = input$primary_species_benefitted,
+        secondary_species = collapse_or_na(input$secondary_species_benefitted),
+        life_stage = input$lifestages_benefitted,
+        habitat_type = input$habtypes_improved,
+        land_ownership = input$ownership
       ) |>
       st_join(idaho_huc8.sf) |>
       st_join(idaho_counties.sf) |>
       st_join(regions.sf)
   })
 
+  iv <- InputValidator$new()
+
+  iv$add_rule("project_name", sv_required("Project name is required"))
+
   observeEvent(input$submit_project, {
+    iv$enable()
+
+
     pt <- selected_point()
     sel_stream <- selected_flowline()
+
+    if (!iv$is_valid()) {
+      showNotification("Please fix the highlighted fields.", type = "error")
+      return()
+    }
+
 
     validate(
       need(nzchar(trimws(input$project_name)), "Enter a project name."),
@@ -529,11 +567,28 @@ server <- function(input, output, session) {
       )
     })
   })
+
+
+
+
+  observeEvent(input$save_project, {
+    req(project_joined())
+
+    new_project <- project_joined()
+
+    saveRDS(new_project, "data-raw/test")
+
+    showNotification("Save successful!", type = "message")
+  })
 }
 
 # helper for NULL-safe text
 `%||%` <- function(x, y) {
   if (is.null(x) || length(x) == 0 || is.na(x) || x == "") y else x
 }
+
+# write the output file when user syas it's ready
+
+
 
 shinyApp(ui, server)
