@@ -500,7 +500,7 @@ server <- function(input, output, session) {
       mutate(
         project_name = trimws(input$project_name),
         idfg_trackingnumber = trimws(input$project_id),
-        objectives = input$project_objectives,
+        objectives = input$project_objective,
         managing_org = input$project_agency,
         award_amount = input$amt_awarded,
         project_startdate = input$project_startdate,
@@ -522,6 +522,13 @@ server <- function(input, output, session) {
   iv <- InputValidator$new()
 
   iv$add_rule("project_name", sv_required("Project name is required"))
+  iv$add_rule("project_id", sv_required("Project ID is required"))
+  iv$add_rule("project_objective", sv_required("Project Objective is required"))
+  iv$add_rule("project_agency", sv_required("Agency/organization is required"))
+  iv$add_rule("amt_awarded", sv_required("Amount awarded is required"))
+  iv$add_rule("project_startdate", sv_required("Project Start Date is required"))
+  iv$add_rule("project_description", sv_required("Project Description is required"))
+  iv$add_rule("idfg_staff", sv_required("Staff is required"))
 
   observeEvent(input$submit_project, {
     iv$enable()
@@ -535,20 +542,6 @@ server <- function(input, output, session) {
       return()
     }
 
-
-    validate(
-      need(nzchar(trimws(input$project_name)), "Enter a project name."),
-      need(!is.null(pt), "Select project coordinates."),
-      need(!is.null(sel_stream) && nrow(sel_stream) > 0, "Select a primary stream.")
-    )
-
-    # new_project <- tibble(
-    #   project_name = trimws(input$project_name),
-    #   project_id = trimws(input$project_id),
-    #   latitude = pt$latitude,
-    #   longitude = pt$longitude,
-    #   created_at = Sys.time()
-    # )
 
     new_project <- project_joined()
 
@@ -579,6 +572,9 @@ server <- function(input, output, session) {
     saveRDS(new_project, "data-raw/test")
 
     showNotification("Save successful!", type = "message")
+  })
+  observe({
+    cat(paste(names(reactiveValuesToList(input)), collapse = "\n"))
   })
 }
 
