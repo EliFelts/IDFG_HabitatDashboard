@@ -101,10 +101,6 @@ ui <- page_sidebar(
             col_widths = c(6, 6),
             textInput("project_name", "Project name"),
             textInput("project_id", "IDFG Project Tracking Number"),
-            textInput(
-              "project_objective",
-              "Project Objectives"
-            ),
             selectInput(
               "project_agency",
               "Managing agency/organization",
@@ -125,6 +121,10 @@ ui <- page_sidebar(
               value = NULL,
               clearButton = TRUE
             )
+          ),
+          textInput(
+            "project_objective",
+            "Project Objective"
           ),
           textAreaInput(
             "project_description",
@@ -505,13 +505,21 @@ server <- function(input, output, session) {
         gnis_id = selected_flowline()$gnis_id,
         primary_species = input$primary_species_benefitted,
         secondary_species = collapse_or_na(input$secondary_species_benefitted),
-        life_stage = input$lifestages_benefitted,
-        habitat_type = input$habtypes_improved,
-        land_ownership = input$ownership
+        life_stage = collapse_or_na(input$lifestages_benefitted),
+        habitat_type = collapse_or_na(input$habtypes_improved),
+        land_ownership = collapse_or_na(input$ownership)
       ) |>
       st_join(idaho_huc8.sf) |>
       st_join(idaho_counties.sf) |>
-      st_join(regions.sf)
+      st_join(regions.sf) |>
+      select(project_name, idfg_trackingnumber, objectives, managing_org,
+        award_amount, project_startdate, project_description, idfg_staff,
+        latitude, longitude,
+        stream_name, gnis_id,
+        idfg_region = region_number, huc6, huc8,
+        county, primary_species, secondary_species, life_stage,
+        habitat_type, land_ownership
+      )
   })
 
   # validate whether spatial data are ready for
@@ -541,7 +549,9 @@ server <- function(input, output, session) {
   iv$add_rule("project_description", sv_required("Project Description is required"))
   iv$add_rule("idfg_staff", sv_required("Staff is required"))
   iv$add_rule("primary_species_benefitted", sv_required("Primary species is required"))
-
+  iv$add_rule("lifestages_benefitted", sv_required("Life stage is required"))
+  iv$add_rule("habtypes_improved", sv_required("Habitat types are required"))
+  iv$add_rule("ownership", sv_required("Land Ownership is required"))
 
   project_preview <- reactiveVal(NULL)
 
@@ -572,7 +582,7 @@ server <- function(input, output, session) {
          Latitude: {round(new_project$latitude, 6)}\n
          Longitude: {round(new_project$longitude, 6)}\n
          County: {new_project$county}\n
-         Region: {new_project$region_name}\n
+         Region: {new_project$idfg_region}\n
          HUC8: {new_project$huc8}"
       )
     })
