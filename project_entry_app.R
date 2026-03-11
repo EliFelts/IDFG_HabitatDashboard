@@ -94,7 +94,7 @@ ui <- page_sidebar(
       style = "height: calc(100vh - 80px); overflow-y: auto; padding-right: 10px;",
       accordion(
         multiple = TRUE,
-        open = c("Project Information", "Location & Stream Selection"),
+        open = c("Project Information", "Primary Location & Stream Selection"),
         accordion_panel(
           "Project Information",
           layout_columns(
@@ -214,7 +214,7 @@ ui <- page_sidebar(
           )
         ),
         accordion_panel(
-          "Location & Stream Selection",
+          "Primary Location & Stream Selection",
           p(
             class = "text-muted",
             "Choose project coordinates by clicking the map or entering them manually."
@@ -269,7 +269,7 @@ ui <- page_sidebar(
       tags$hr(),
       uiOutput("preview_button_ui"),
       tags$hr(),
-      verbatimTextOutput("status_text"),
+      # verbatimTextOutput("status_text"),
       uiOutput("save_button_ui")
     )
   ),
@@ -534,7 +534,7 @@ server <- function(input, output, session) {
   output$preview_button_ui <- renderUI({
     req(preview_ready())
 
-    actionButton("submit_project", "Preview Project")
+    actionButton("submit_project", "Validate Project")
   })
 
 
