@@ -13,7 +13,7 @@ library(scales)
 library(bslib)
 library(arrow)
 
-
+test <- read_rds("data-raw/test")
 
 # read in layers that will be nice for reference on the map
 # when entering data
@@ -94,7 +94,7 @@ ui <- page_sidebar(
       style = "height: calc(100vh - 80px); overflow-y: auto; padding-right: 10px;",
       accordion(
         multiple = TRUE,
-        open = c("Project Information", "Primary Location & Stream Selection"),
+        open = c("Project Information", "Primary Location & Stream Selection", "Project Actions"),
         accordion_panel(
           "Project Information",
           layout_columns(
@@ -478,7 +478,7 @@ server <- function(input, output, session) {
     }
   })
 
-  # reactive to store valuues from the actions table
+  # reactive to store values from the actions table
 
   project_actions <- reactiveVal(
     tibble(
@@ -494,6 +494,93 @@ server <- function(input, output, session) {
       idfg_region = character()
     )
   )
+
+  # reactive that converts currently selected point
+  # and stream into a draft action
+
+  current_action_draft <- reactive({
+    req(selected_point())
+    req(selected_flowline())
+
+    pt <- selected_point()
+    stream <- selected_flowline()
+
+    pt_sf <- pt |>
+      st_as_sf(
+        coords = c("longitude", "latitude"),
+        crs = st_crs(idaho_huc8.sf),
+        remove = FALSE
+      ) |>
+      st_join(idaho_huc8.sf) |>
+      st_join(idaho_counties.sf) |>
+      st_join(regions.sf)
+
+    tibble(
+      latitude = pt_sf$latitude,
+      longitude = pt_sf$longitude,
+      stream_name = stream$NAME[1] %||% NA_character_,
+      LLID = as.character(stream$LLID[1] %||% NA),
+      huc8 = pt_sf$huc8[1] %||% NA_character_,
+      county = pt_sf$county[1] %||% NA_character_,
+      idfg_region = as.character(pt_sf$region_number[1] %||% NA)
+    )
+  })
+
+  # render th UI for project actions
+
+  output$project_actions_ui <- renderUI({
+    req(selected_point())
+    req(selected_flowline())
+
+    draft <- current_action_draft()
+
+    tagList(
+      p(
+        class = "text-muted",
+        "The primary project location becomes Action 1. Assign an action type, then add it to the project."
+      ),
+      layout_columns(
+        col_widths = c(6, 6),
+        textInput(
+          "action1_latitude_display",
+          "Latitude",
+          value = round(draft$latitude, 6),
+          width = "100%"
+        ),
+        textInput(
+          "action1_longitude_display",
+          "Longitude",
+          value = round(draft$longitude, 6),
+          width = "100%"
+        ),
+        textInput(
+          "action1_stream_display",
+          "Selected stream",
+          value = draft$stream_name,
+          width = "100%"
+        ),
+        selectInput(
+          "action1_type",
+          "Action type",
+          choices = c(
+            "Culvert removal",
+            "Culvert replacement",
+            "Beaver dam analog",
+            "Fish passage improvement",
+            "Riparian planting",
+            "In-stream wood addition",
+            "Side channel reconnection",
+            "Other"
+          ),
+          selected = ""
+        )
+      ),
+      actionButton("add_primary_action", "Add Primary Action"),
+      tags$br(),
+      tags$br(),
+      uiOutput("actions_summary_ui")
+    )
+  })
 
   # reactive to do some spatial joins then
   # bring everything together into a table for output
@@ -533,7 +620,7 @@ server <- function(input, output, session) {
       select(project_name, idfg_trackingnumber, objectives, managing_org,
         award_amount, project_startdate, project_description, idfg_staff,
         latitude, longitude,
-        stream_name, gnis_id,
+        stream_name, LLID,
         idfg_region = region_number, huc6, huc8,
         county, primary_species, secondary_species, life_stage,
         habitat_type, land_ownership
