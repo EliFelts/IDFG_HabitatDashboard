@@ -264,6 +264,10 @@ ui <- page_sidebar(
             div()
           ),
           uiOutput("stream_selection_ui")
+        ),
+        accordion_panel(
+          "Project Actions",
+          uiOutput("project_actions_ui")
         )
       ),
       tags$hr(),
@@ -476,6 +480,23 @@ server <- function(input, output, session) {
       paste("Selected stream:", stream_name)
     }
   })
+
+  # reactive to store valuues from the actions table
+
+  project_actions <- reactiveVal(
+    tibble(
+      action_id = integer(),
+      action_order = integer(),
+      action_type = character(),
+      latitude = numeric(),
+      longitude = numeric(),
+      stream_name = character(),
+      gnis_id = character(),
+      huc8 = character(),
+      county = character(),
+      idfg_region = character()
+    )
+  )
 
   # reactive to do some spatial joins then
   # bring everything together into a table for output
