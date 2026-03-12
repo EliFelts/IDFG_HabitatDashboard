@@ -59,7 +59,6 @@ leaflet_base <- leaflet() %>%
   addResetMapButton() |>
   addLayersControl(
     baseGroups = c("Topographic", "Imagery", "Roads"),
-    overlayGroups = c("States"),
     options = layersControlOptions(collapsed = FALSE),
     position = "bottomright"
   )
@@ -581,6 +580,74 @@ server <- function(input, output, session) {
       uiOutput("actions_summary_ui")
     )
   })
+
+  # add the first actionbutton for project actions
+
+  observeEvent(input$add_primary_action, {
+    req(current_action_draft())
+
+    if (is.null(input$action1_type) || input$action1_type == "") {
+      showNotification("Select an action type before adding the action.", type = "error")
+      return()
+    }
+
+    draft <- current_action_draft()
+    existing <- project_actions()
+
+    new_action <- draft |>
+      mutate(
+        action_id = if (nrow(existing) == 0) 1L else max(existing$action_id) + 1L,
+        action_order = if (nrow(existing) == 0) 1L else max(existing$action_order) + 1L,
+        action_type = input$action1_type
+      ) |>
+      select(
+        action_id, action_order, action_type,
+        latitude, longitude, stream_name, LLID,
+        huc8, county, idfg_region
+      )
+
+    project_actions(bind_rows(existing, new_action))
+
+    showNotification("Primary action added.", type = "message")
+  })
+
+  # show a summary of added actions
+
+  output$actions_summary_ui <- renderUI({
+    acts <- project_actions()
+
+    if (nrow(acts) == 0) {
+      return(
+        div(
+          class = "text-muted",
+          "No project actions added yet."
+        )
+      )
+    }
+
+    tagList(
+      h5("Added Project Actions"),
+      tableOutput("actions_summary_table")
+    )
+  })
+
+  output$actions_summary_table <- renderTable(
+    {
+      project_actions() |>
+        select(
+          action_order,
+          action_type,
+          stream_name,
+          county,
+          idfg_region,
+          latitude,
+          longitude
+        )
+    },
+    striped = TRUE,
+    bordered = TRUE,
+    width = "100%"
+  )
 
   # reactive to do some spatial joins then
   # bring everything together into a table for output
