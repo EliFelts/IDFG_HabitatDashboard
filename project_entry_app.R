@@ -287,6 +287,9 @@ ui <- page_sidebar(
   )
 )
 
+
+
+
 server <- function(input, output, session) {
   selected_point <- reactiveVal(NULL)
 
@@ -386,7 +389,7 @@ server <- function(input, output, session) {
   local_flowlines <- reactive({
     req(selected_huc8())
 
-    path <- file.path("data-raw/idfg_flowlines_huc8", paste0(selected_huc8(), ".parquet"))
+    path <- file.path("data-raw/flowlines_huc8", paste0(selected_huc8(), ".parquet"))
 
     req(file.exists(path))
 
@@ -404,9 +407,9 @@ server <- function(input, output, session) {
         clearGroup("local_flowlines") |>
         addPolylines(
           data = local_flowlines(),
-          layerId = ~LLID,
+          layerId = ~comid,
           group = "local_flowlines",
-          label = ~NAME
+          label = ~gnis_name
         ) |>
         addMarkers(
           lng = pt$longitude,
@@ -434,7 +437,7 @@ server <- function(input, output, session) {
     req(local_flowlines(), selected_flowline_id())
 
     local_flowlines() |>
-      filter(LLID == selected_flowline_id())
+      filter(comid == selected_flowline_id())
   })
 
   observe({
@@ -445,7 +448,7 @@ server <- function(input, output, session) {
       addPolylines(
         data = selected_flowline(),
         group = "selected_flowline",
-        label = ~ str_c(NAME),
+        label = ~ str_c(gnis_name),
         weight = 5,
         opacity = 1,
         color = "red"
@@ -468,7 +471,7 @@ server <- function(input, output, session) {
   output$selected_stream_text <- renderText({
     req(selected_flowline())
 
-    stream_name <- selected_flowline()$NAME[1]
+    stream_name <- selected_flowline()$gnis_name[1]
 
     if (is.na(stream_name) || stream_name == "") {
       "Selected stream: Unnamed flowline"
@@ -487,7 +490,7 @@ server <- function(input, output, session) {
       latitude = numeric(),
       longitude = numeric(),
       stream_name = character(),
-      LLID = character(),
+      gnis_id = character(),
       huc8 = character(),
       county = character(),
       idfg_region = character()
@@ -673,8 +676,8 @@ server <- function(input, output, session) {
         project_startdate = input$project_startdate,
         project_description = input$project_description,
         idfg_staff = input$idfg_staff,
-        stream_name = selected_flowline()$NAME,
-        LLID = selected_flowline()$LLID,
+        stream_name = selected_flowline()$gnis_name,
+        gnis_id = selected_flowline()$gnis_id,
         primary_species = input$primary_species_benefitted,
         secondary_species = collapse_or_na(input$secondary_species_benefitted),
         life_stage = collapse_or_na(input$lifestages_benefitted),
@@ -775,6 +778,9 @@ server <- function(input, output, session) {
     saveRDS(new_project, "data-raw/test")
 
     showNotification("Save successful!", type = "message")
+  })
+  observe({
+    cat(paste(names(reactiveValuesToList(input)), collapse = "\n"))
   })
 }
 
