@@ -93,7 +93,7 @@ ui <- page_sidebar(
       style = "height: calc(100vh - 80px); overflow-y: auto; padding-right: 10px;",
       accordion(
         multiple = TRUE,
-        open = c("Project Information", "Primary Location & Stream Selection", "Project Actions"),
+        open = c("Project Information", "Primary Location & Stream Selection"),
         accordion_panel(
           "Project Information",
           layout_columns(
@@ -263,10 +263,6 @@ ui <- page_sidebar(
             div()
           ),
           uiOutput("stream_selection_ui")
-        ),
-        accordion_panel(
-          "Project Actions",
-          uiOutput("project_actions_ui")
         )
       ),
       tags$hr(),
@@ -389,7 +385,7 @@ server <- function(input, output, session) {
   local_flowlines <- reactive({
     req(selected_huc8())
 
-    path <- file.path("data-raw/flowlines_huc8", paste0(selected_huc8(), ".parquet"))
+    path <- file.path("data-raw/idfg_flowlines_huc8", paste0(selected_huc8(), ".parquet"))
 
     req(file.exists(path))
 
@@ -407,9 +403,9 @@ server <- function(input, output, session) {
         clearGroup("local_flowlines") |>
         addPolylines(
           data = local_flowlines(),
-          layerId = ~comid,
+          layerId = ~LLID,
           group = "local_flowlines",
-          label = ~gnis_name
+          label = ~NAME
         ) |>
         addMarkers(
           lng = pt$longitude,
@@ -437,7 +433,7 @@ server <- function(input, output, session) {
     req(local_flowlines(), selected_flowline_id())
 
     local_flowlines() |>
-      filter(comid == selected_flowline_id())
+      filter(LLID == selected_flowline_id())
   })
 
   observe({
@@ -448,7 +444,7 @@ server <- function(input, output, session) {
       addPolylines(
         data = selected_flowline(),
         group = "selected_flowline",
-        label = ~ str_c(gnis_name),
+        label = ~ str_c(NAME),
         weight = 5,
         opacity = 1,
         color = "red"
@@ -471,7 +467,7 @@ server <- function(input, output, session) {
   output$selected_stream_text <- renderText({
     req(selected_flowline())
 
-    stream_name <- selected_flowline()$gnis_name[1]
+    stream_name <- selected_flowline()$NAME[1]
 
     if (is.na(stream_name) || stream_name == "") {
       "Selected stream: Unnamed flowline"
@@ -490,167 +486,14 @@ server <- function(input, output, session) {
       latitude = numeric(),
       longitude = numeric(),
       stream_name = character(),
-      gnis_id = character(),
+      LLID = character(),
       huc8 = character(),
       county = character(),
       idfg_region = character()
     )
   )
 
-  # reactive that converts currently selected point
-  # and stream into a draft action
 
-  current_action_draft <- reactive({
-    req(selected_point())
-    req(selected_flowline())
-
-    pt <- selected_point()
-    stream <- selected_flowline()
-
-    pt_sf <- pt |>
-      st_as_sf(
-        coords = c("longitude", "latitude"),
-        crs = st_crs(idaho_huc8.sf),
-        remove = FALSE
-      ) |>
-      st_join(idaho_huc8.sf) |>
-      st_join(idaho_counties.sf) |>
-      st_join(regions.sf)
-
-    tibble(
-      latitude = pt_sf$latitude,
-      longitude = pt_sf$longitude,
-      stream_name = stream$NAME[1] %||% NA_character_,
-      LLID = as.character(stream$LLID[1] %||% NA),
-      huc8 = pt_sf$huc8[1] %||% NA_character_,
-      county = pt_sf$county[1] %||% NA_character_,
-      idfg_region = as.character(pt_sf$region_number[1] %||% NA)
-    )
-  })
-
-  # render th UI for project actions
-
-  output$project_actions_ui <- renderUI({
-    req(selected_point())
-    req(selected_flowline())
-
-    draft <- current_action_draft()
-
-    tagList(
-      p(
-        class = "text-muted",
-        "The primary project location becomes Action 1. Assign an action type, then add it to the project."
-      ),
-      layout_columns(
-        col_widths = c(6, 6),
-        textInput(
-          "action1_latitude_display",
-          "Latitude",
-          value = round(draft$latitude, 6),
-          width = "100%"
-        ),
-        textInput(
-          "action1_longitude_display",
-          "Longitude",
-          value = round(draft$longitude, 6),
-          width = "100%"
-        ),
-        textInput(
-          "action1_stream_display",
-          "Selected stream",
-          value = draft$stream_name,
-          width = "100%"
-        ),
-        selectInput(
-          "action1_type",
-          "Action type",
-          choices = c(
-            "Culvert removal",
-            "Culvert replacement",
-            "Beaver dam analog",
-            "Fish passage improvement",
-            "Riparian planting",
-            "In-stream wood addition",
-            "Side channel reconnection",
-            "Other"
-          ),
-          selected = ""
-        )
-      ),
-      actionButton("add_primary_action", "Add Primary Action"),
-      tags$br(),
-      tags$br(),
-      uiOutput("actions_summary_ui")
-    )
-  })
-
-  # add the first actionbutton for project actions
-
-  observeEvent(input$add_primary_action, {
-    req(current_action_draft())
-
-    if (is.null(input$action1_type) || input$action1_type == "") {
-      showNotification("Select an action type before adding the action.", type = "error")
-      return()
-    }
-
-    draft <- current_action_draft()
-    existing <- project_actions()
-
-    new_action <- draft |>
-      mutate(
-        action_id = if (nrow(existing) == 0) 1L else max(existing$action_id) + 1L,
-        action_order = if (nrow(existing) == 0) 1L else max(existing$action_order) + 1L,
-        action_type = input$action1_type
-      ) |>
-      select(
-        action_id, action_order, action_type,
-        latitude, longitude, stream_name, LLID,
-        huc8, county, idfg_region
-      )
-
-    project_actions(bind_rows(existing, new_action))
-
-    showNotification("Primary action added.", type = "message")
-  })
-
-  # show a summary of added actions
-
-  output$actions_summary_ui <- renderUI({
-    acts <- project_actions()
-
-    if (nrow(acts) == 0) {
-      return(
-        div(
-          class = "text-muted",
-          "No project actions added yet."
-        )
-      )
-    }
-
-    tagList(
-      h5("Added Project Actions"),
-      tableOutput("actions_summary_table")
-    )
-  })
-
-  output$actions_summary_table <- renderTable(
-    {
-      project_actions() |>
-        select(
-          action_order,
-          action_type,
-          stream_name,
-          county,
-          idfg_region,
-          latitude,
-          longitude
-        )
-    },
-    striped = TRUE,
-    bordered = TRUE,
-    width = "100%"
-  )
 
   # reactive to do some spatial joins then
   # bring everything together into a table for output
@@ -676,8 +519,8 @@ server <- function(input, output, session) {
         project_startdate = input$project_startdate,
         project_description = input$project_description,
         idfg_staff = input$idfg_staff,
-        stream_name = selected_flowline()$gnis_name,
-        gnis_id = selected_flowline()$gnis_id,
+        stream_name = selected_flowline()$NAME,
+        LLID = selected_flowline()$LLID,
         primary_species = input$primary_species_benefitted,
         secondary_species = collapse_or_na(input$secondary_species_benefitted),
         life_stage = collapse_or_na(input$lifestages_benefitted),
@@ -694,7 +537,11 @@ server <- function(input, output, session) {
         idfg_region = region_number, huc6, huc8,
         county, primary_species, secondary_species, life_stage,
         habitat_type, land_ownership
-      )
+      ) |>
+      mutate(project_id = str_c(project_startdate, str_c("Region", idfg_region, sep = ""),
+        LLID,
+        sep = "_"
+      ))
   })
 
   # validate whether spatial data are ready for
@@ -775,12 +622,18 @@ server <- function(input, output, session) {
 
     new_project <- project_joined()
 
-    saveRDS(new_project, "data-raw/test")
+
+    file_name <- paste0(
+      "data-raw/project_entry/",
+      trimws(new_project$project_id),
+      "_",
+      format(Sys.time(), "%Y%m%d_%H%M%S"),
+      ".rds"
+    )
+
+    saveRDS(new_project, file_name)
 
     showNotification("Save successful!", type = "message")
-  })
-  observe({
-    cat(paste(names(reactiveValuesToList(input)), collapse = "\n"))
   })
 }
 
@@ -792,5 +645,6 @@ server <- function(input, output, session) {
 # write the output file when user syas it's ready
 
 
-
 shinyApp(ui, server)
+
+test <- read_rds("data-raw/project_entry/2026-03-03_Region7_1150818449116_20260313_085511.rds")
