@@ -12,11 +12,33 @@ library(here)
 library(scales)
 library(bslib)
 library(arrow)
+library(readxl)
 
 test <- read_rds("data-raw/test")
 
 # read in layers that will be nice for reference on the map
 # when entering data
+
+# set master spreadsheet that houses a bunch of
+# the options for inputs
+
+options.path <- str_c("~/Library/CloudStorage/OneDrive-SunnysideInsights/IDFG_HabitatDashboard/idfg_habitat_basedata.xlsx")
+
+# read in partner data vector
+
+partner_vector <- read_excel(options.path,
+  sheet = "partners"
+) |>
+  arrange(entity) |>
+  pull(entity)
+
+# read in project type vector
+
+type_vector <- read_excel(options.path,
+  sheet = "project_type"
+) |>
+  arrange(type) |>
+  pull(type)
 
 # define the geopackage so it doesn't have to be typed out
 # for every layer read
@@ -76,6 +98,8 @@ species_vector <- c(
   "Yellowstone Cutthroat Trout"
 )
 
+
+
 collapse_or_na <- function(x) {
   if (is.null(x) || length(x) == 0) {
     NA_character_
@@ -86,6 +110,7 @@ collapse_or_na <- function(x) {
 
 ui <- page_sidebar(
   title = "New Habitat Project",
+  theme = bs_theme(bootswatch = "flatly"),
   sidebar = sidebar(
     width = 900,
     open = "open",
@@ -105,6 +130,26 @@ ui <- page_sidebar(
               "Managing agency/organization",
               choices = c("IDFG", "DOGE"),
               selected = "IDFG"
+            ),
+            pickerInput("partner_agency",
+              "Partnering Agencies/Entities",
+              choices = partner_vector,
+              multiple = T,
+              options = list(
+                `actions-box` = TRUE,
+                `live-search` = TRUE
+              ),
+              width = "100%"
+            ),
+            pickerInput("project_type",
+              "Project Type",
+              choices = c("", type_vector),
+              selected = "",
+              multiple = F,
+              options = list(
+                `live-search` = TRUE
+              ),
+              width = "100%"
             ),
             autonumericInput(
               "amt_awarded",
@@ -150,7 +195,7 @@ ui <- page_sidebar(
             pickerInput(
               "primary_species_benefitted",
               "Primary Species Benefitted",
-              choices = c("Select primary species" = "", species_vector),
+              choices = c("", species_vector),
               selected = "",
               multiple = FALSE,
               options = list(
@@ -646,5 +691,3 @@ server <- function(input, output, session) {
 
 
 shinyApp(ui, server)
-
-test <- read_rds("data-raw/project_entry/2026-03-03_Region7_1150818449116_20260313_085511.rds")
