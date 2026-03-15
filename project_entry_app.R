@@ -168,9 +168,8 @@ ui <- page_sidebar(
             ),
             pickerInput("project_actions",
               "Project Actions",
-              choices = c("", actions_vector),
-              selected = "",
-              multiple = F,
+              choices = c(actions_vector),
+              multiple = T,
               options = list(
                 `live-search` = TRUE
               ),
@@ -192,9 +191,11 @@ ui <- page_sidebar(
               clearButton = TRUE
             )
           ),
-          textInput(
+          textAreaInput(
             "project_objective",
-            "Project Objective"
+            "Project Objective",
+            rows = 2,
+            width = "100%"
           ),
           textAreaInput(
             "project_description",
@@ -334,10 +335,11 @@ ui <- page_sidebar(
         )
       ),
       tags$hr(),
-      uiOutput("preview_button_ui"),
-      tags$hr(),
-      # verbatimTextOutput("status_text"),
-      uiOutput("save_button_ui")
+      layout_columns(
+        col_widths = c(6, 6),
+        uiOutput("preview_button_ui"),
+        uiOutput("save_button_ui")
+      )
     )
   ),
   card(
@@ -607,7 +609,7 @@ server <- function(input, output, session) {
         award_amount = input$amt_awarded,
         project_startdate = input$project_startdate,
         project_description = input$project_description,
-        idfg_staff = input$idfg_staff,
+        idfg_staff = collapse_or_na(input$idfg_staff),
         stream_name = selected_flowline()$NAME,
         LLID = selected_flowline()$LLID,
         primary_species = input$primary_species_benefitted,
