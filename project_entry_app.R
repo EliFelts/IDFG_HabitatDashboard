@@ -32,13 +32,46 @@ partner_vector <- read_excel(options.path,
   arrange(entity) |>
   pull(entity)
 
-# read in project type vector
+# read in project subtype; this will
+# feed into a reactive so only options
+# that apply to a given type will appear
 
 type_vector <- read_excel(options.path,
   sheet = "project_type"
 ) |>
   arrange(type) |>
   pull(type)
+
+
+# read in project subtype vector
+
+subtype.df <- read_excel(options.path,
+  sheet = "project_subtype"
+)
+
+# read in species vector
+
+species_vector <- read_excel(options.path,
+  sheet = "species_benefitted"
+) |>
+  arrange(common_name) |>
+  pull(common_name)
+
+# read in actions vector
+
+actions_vector <- read_excel(options.path,
+  sheet = "actions"
+) |>
+  arrange(action) |>
+  pull(action)
+
+# read in staff vector
+
+staff_vector <- read_excel(options.path,
+  sheet = "idfg_staff"
+) |>
+  arrange(position) |>
+  pull(position)
 
 # define the geopackage so it doesn't have to be typed out
 # for every layer read
@@ -88,15 +121,7 @@ leaflet_base <- leaflet() %>%
 leaflet_base |>
   addPolygons(data = idaho_counties.sf)
 
-# make a vector of species that may be benefitted
 
-species_vector <- c(
-  "",
-  "Brown Trout", "Bull Trout", "Chinook salmon",
-  "Mountain Whitefish", "Rainbow Trout",
-  "Westslope Cutthroat Trout",
-  "Yellowstone Cutthroat Trout"
-)
 
 
 
@@ -141,9 +166,9 @@ ui <- page_sidebar(
               ),
               width = "100%"
             ),
-            pickerInput("project_type",
-              "Project Type",
-              choices = c("", type_vector),
+            pickerInput("project_actions",
+              "Project Actions",
+              choices = c("", actions_vector),
               selected = "",
               multiple = F,
               options = list(
@@ -151,6 +176,7 @@ ui <- page_sidebar(
               ),
               width = "100%"
             ),
+            # uiOutput("project_subtype_ui"),
             autonumericInput(
               "amt_awarded",
               "Amount Awarded",
@@ -181,10 +207,7 @@ ui <- page_sidebar(
             pickerInput(
               "idfg_staff",
               "IDFG Staff associated with project",
-              choices = c(
-                "Robert Hand",
-                "Brian Knoth"
-              ),
+              choices = staff_vector,
               multiple = TRUE,
               options = list(
                 `actions-box` = TRUE,
@@ -332,6 +355,27 @@ ui <- page_sidebar(
 
 
 server <- function(input, output, session) {
+  # reactive UI for project subtype to have
+  # options filtered by project type
+
+  # output$project_subtype_ui <- renderUI({
+  #   req(input$project_type)
+  #
+  #   project_subtype_options <- subtype.df |>
+  #     filter(type == input$project_type) |>
+  #     arrange(subtype)
+  #
+  #   pickerInput("project_subtype",
+  #     "Project Subtype",
+  #     choices = c("", unique(project_subtype_options$subtype)),
+  #     selected = "",
+  #     multiple = F,
+  #     options = list(`live-search` = TRUE),
+  #     width = "100%"
+  #   )
+  # })
+
+
   selected_point <- reactiveVal(NULL)
 
   output$project_map <- renderLeaflet({
