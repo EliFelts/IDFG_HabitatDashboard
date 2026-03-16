@@ -14,7 +14,7 @@ library(bslib)
 library(arrow)
 library(readxl)
 
-test <- read_rds("data-raw/test")
+test <- read_rds("data-raw/project_entry/1990-01-01_Region7_1141681453988_20260315_165659.rds")
 
 # read in layers that will be nice for reference on the map
 # when entering data
@@ -31,6 +31,15 @@ partner_vector <- read_excel(options.path,
 ) |>
   arrange(entity) |>
   pull(entity)
+
+# read in funding source data vector
+
+funding_vector <- read_excel(options.path,
+  sheet = "funding_source"
+) |>
+  arrange(entity) |>
+  pull(entity)
+
 
 # read in project subtype; this will
 # feed into a reactive so only options
@@ -166,11 +175,13 @@ ui <- page_sidebar(
               ),
               width = "100%"
             ),
-            pickerInput("project_actions",
-              "Project Actions",
-              choices = c(actions_vector),
+            pickerInput(
+              "funding_source",
+              "Funding Sources",
+              choices = funding_vector,
               multiple = T,
               options = list(
+                `actions-box` = TRUE,
                 `live-search` = TRUE
               ),
               width = "100%"
@@ -191,10 +202,13 @@ ui <- page_sidebar(
               clearButton = TRUE
             )
           ),
-          textAreaInput(
-            "project_objective",
-            "Project Objective",
-            rows = 2,
+          pickerInput("project_actions",
+            "Project Actions",
+            choices = c(actions_vector),
+            multiple = T,
+            options = list(
+              `live-search` = TRUE
+            ),
             width = "100%"
           ),
           textAreaInput(
@@ -604,7 +618,6 @@ server <- function(input, output, session) {
       mutate(
         project_name = trimws(input$project_name),
         idfg_trackingnumber = trimws(input$project_id),
-        objectives = input$project_objective,
         managing_org = input$project_agency,
         award_amount = input$amt_awarded,
         project_startdate = input$project_startdate,
@@ -655,7 +668,6 @@ server <- function(input, output, session) {
 
   iv$add_rule("project_name", sv_required("Project name is required"))
   iv$add_rule("project_id", sv_required("Project ID is required"))
-  iv$add_rule("project_objective", sv_required("Project Objective is required"))
   iv$add_rule("project_agency", sv_required("Agency/organization is required"))
   iv$add_rule("amt_awarded", sv_required("Amount awarded is required"))
   iv$add_rule("project_startdate", sv_required("Project Start Date is required"))
