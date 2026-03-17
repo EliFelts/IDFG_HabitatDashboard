@@ -14,7 +14,7 @@ library(bslib)
 library(arrow)
 library(readxl)
 
-test <- read_rds("data-raw/project_entry/1990-01-01_Region7_1141681453988_20260315_165659.rds")
+test <- read_rds("data-raw/project_entry/1990-01-01_Region7_1139712448771_20260317_153507.rds")
 
 # read in layers that will be nice for reference on the map
 # when entering data
@@ -182,7 +182,7 @@ ui <- page_sidebar(
               ),
               width = "100%"
             ),
-            pickerInput("guiding_doucments",
+            pickerInput("guiding_documents",
               "Guidance Documents/Tools",
               choices = guidance_vector,
               multiple = T,
@@ -654,7 +654,7 @@ server <- function(input, output, session) {
       st_join(idaho_counties.sf) |>
       st_join(regions.sf) |>
       select(project_name, idfg_trackingnumber, managing_org,
-        partner_agency, guidance_doucs,
+        partner_agency, guidance_docs,
         award_amount, project_startdate, project_description, idfg_staff,
         latitude, longitude,
         stream_name, LLID,
