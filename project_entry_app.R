@@ -14,7 +14,7 @@ library(bslib)
 library(arrow)
 library(readxl)
 
-test <- read_rds("data-raw/project_entry/1990-01-01_Region7_1139712448771_20260317_153507.rds")
+test <- read_rds("data-raw/project_entry/2014-01-01_Region7_1138891451879_20260317_155051.rds")
 
 # read in layers that will be nice for reference on the map
 # when entering data
@@ -638,6 +638,7 @@ server <- function(input, output, session) {
         managing_org = input$project_agency,
         partner_agency = collapse_or_na(input$partner_agency),
         guidance_docs = collapse_or_na(input$guiding_documents),
+        funding_source = collapse_or_na(input$funding_source),
         award_amount = input$amt_awarded,
         project_startdate = input$project_startdate,
         project_description = input$project_description,
@@ -654,7 +655,7 @@ server <- function(input, output, session) {
       st_join(idaho_counties.sf) |>
       st_join(regions.sf) |>
       select(project_name, idfg_trackingnumber, managing_org,
-        partner_agency, guidance_docs,
+        partner_agency, guidance_docs, funding_source,
         award_amount, project_startdate, project_description, idfg_staff,
         latitude, longitude,
         stream_name, LLID,
