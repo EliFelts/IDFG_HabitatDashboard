@@ -40,6 +40,13 @@ funding_vector <- read_excel(options.path,
   arrange(entity) |>
   pull(entity)
 
+# read in guidance docs vector
+
+guidance_vector <- read_excel(options.path,
+  sheet = "guidance_docs"
+) |>
+  arrange(document) |>
+  pull(document)
 
 # read in project subtype; this will
 # feed into a reactive so only options
@@ -168,6 +175,16 @@ ui <- page_sidebar(
             pickerInput("partner_agency",
               "Partnering Agencies/Entities",
               choices = partner_vector,
+              multiple = T,
+              options = list(
+                `actions-box` = TRUE,
+                `live-search` = TRUE
+              ),
+              width = "100%"
+            ),
+            pickerInput("guiding_doucments",
+              "Guidance Documents/Tools",
+              choices = guidance_vector,
               multiple = T,
               options = list(
                 `actions-box` = TRUE,
@@ -619,6 +636,8 @@ server <- function(input, output, session) {
         project_name = trimws(input$project_name),
         idfg_trackingnumber = trimws(input$project_id),
         managing_org = input$project_agency,
+        partner_agency = collapse_or_na(input$partner_agency),
+        guidance_docs = collapse_or_na(input$guiding_documents),
         award_amount = input$amt_awarded,
         project_startdate = input$project_startdate,
         project_description = input$project_description,
@@ -634,7 +653,8 @@ server <- function(input, output, session) {
       st_join(idaho_huc8.sf) |>
       st_join(idaho_counties.sf) |>
       st_join(regions.sf) |>
-      select(project_name, idfg_trackingnumber, objectives, managing_org,
+      select(project_name, idfg_trackingnumber, managing_org,
+        partner_agency, guidance_doucs,
         award_amount, project_startdate, project_description, idfg_staff,
         latitude, longitude,
         stream_name, LLID,
